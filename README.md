@@ -14,10 +14,10 @@ cd <YOUR_PROJECT_FOLDER>
 
 ## 3. Create `.env` file
 cat > .env <<EOF
-POSTGRES_USER=admin
-POSTGRES_PASSWORD=password123
+POSTGRES_USER=user
+POSTGRES_PASSWORD=password
 POSTGRES_DB=rps_db
-DATABASE_URL=postgresql://admin:password123@postgres:5432/rps_db
+DATABASE_URL=postgresql://user:password@postgres:5432/rps_db
 RABBITMQ_URL=amqp://rabbitmq:5672
 NODE_ENV=production
 EOF
