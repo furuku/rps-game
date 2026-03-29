@@ -9,8 +9,8 @@ docker --version
 docker-compose --version
 
 ## 2. Clone Project
-git clone <YOUR_PROJECT_GIT_URL>
-cd <YOUR_PROJECT_FOLDER>
+git clone https://github.com/furuku/rps-game.git
+cd <PROJECT_FOLDER>
 
 ## 3. Create `.env` file
 cat > .env <<EOF
