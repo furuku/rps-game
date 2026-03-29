@@ -1,36 +1,53 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# RPS Game - Installation & Run Guide
 
-## Getting Started
+## 1. Install Docker & Docker Compose
+sudo apt update
+sudo apt install -y docker.io docker-compose
+sudo systemctl enable docker
+sudo systemctl start docker
+docker --version
+docker-compose --version
 
-First, run the development server:
+## 2. Clone Project
+git clone <YOUR_PROJECT_GIT_URL>
+cd <YOUR_PROJECT_FOLDER>
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+## 3. Create `.env` file
+cat > .env <<EOF
+POSTGRES_USER=admin
+POSTGRES_PASSWORD=password123
+POSTGRES_DB=rps_db
+DATABASE_URL=postgresql://admin:password123@postgres:5432/rps_db
+RABBITMQ_URL=amqp://rabbitmq:5672
+NODE_ENV=production
+EOF
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## 4. Start Services
+docker-compose up -d
+docker ps
+docker logs -f rps_web
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## 5. Verify Healthcheck
+curl http://localhost:3000/api/health
+# Expected output: { "status": "ok" }
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## 6. Access the Application
+- Browser:
+  - Google Chrome (Windows 10 / 11)
+  - Safari (iOS 15)
+- URL: http://<SERVER_IP>/
 
-## Learn More
+## 7. Running Tests (Optional)
+To run unit tests or E2E tests:
 
-To learn more about Next.js, take a look at the following resources:
+# Unit tests
+docker-compose run --rm test
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+# E2E tests
+docker-compose run --rm e2e
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Notes
+- The production image **does not run tests at build time**. Tests are run separately via `docker-compose run` if needed.
+- All services are configured to wait for dependencies (Postgres, RabbitMQ) before starting.
+- `.env` file must match your environment.
+- Make sure ports 80, 3000, 5432, 5672, 15672 are open if accessing remotely.
