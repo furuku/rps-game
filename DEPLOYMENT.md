@@ -1,85 +1,126 @@
-# 🚀 Production Deployment Guide
+# RPS Game - Deployment Guide
 
-This guide provides step-by-step instructions for deploying the Rock-Paper-Scissors application on a fresh **Ubuntu 20.04 LTS** server using Docker.
+## Overview
+This document describes the deployment architecture, configuration, and operational design of the RPS Game system.
+The system is designed to be **containerized, scalable, and production-ready** using Docker and Docker Compose.
 
-## 📋 Prerequisites
-Ensure you have root or `sudo` access to your Ubuntu server. The server must have access to the internet to download Docker images and clone the repository.
+## Architecture Overview
+The system consists of the following components:
+- Nginx: Reverse proxy and load balancer
+- Web (Next.js): Application servers (multiple instances)
+- PostgreSQL: Relational database
+- RabbitMQ: Message queue for asynchronous processing
 
----
+All services are deployed using Docker Compose within a shared internal network.
 
-## 🛠️ Step 1: Server Preparation (Install Docker)
-First, update your server and install Docker and Docker Compose. Run the following commands on your Ubuntu server:
+## Service Communication
+Nginx -> Web
+    - Routes incoming HTTP requests to multiple web instances
+    - Performs load balancing (round-robin)
+Web -> PostgreSQL
+    - Uses `DATABASE_URL` via internal Docker DNS (`postgres`)
+Web -> RabbitMQ
+    - Uses `RABBITMQ_URL` via internal Docker DNS (`rps_rabbitmq`)
 
-# 1. Update package lists
-- sudo apt update && sudo apt upgrade -y
+All services communicate over Docker's internal network (no external exposure required)
 
-# 2. Install Docker
-- sudo apt install docker.io docker-compose git -y
+## Environment Configuration
+Environment variables are defined in a `.env` file:
+- `POSTGRES_USER` - Database username
+- `POSTGRES_PASSWORD` - Database password
+- `POSTGRES_DB` - Database name
+- `DATABASE_URL` - PostgreSQL connection string
+- `RABBITMQ_URL` - RabbitMQ connection string
+- `NODE_ENV` - Application environment
 
-# 3. Start and enable Docker to run on boot
-- sudo systemctl start docker
-- sudo systemctl enable docker
+Sensitive data is **not hardcoded** and should not be committed to version control.
 
-# 4. Install Docker Compose
-- sudo apt install docker-compose-plugin -y
+## Deployment Strategy
+- Uses **multi-stage Docker build** for optimized image size
+- Dependencies are installed in a separate stage
+- Application is built in a builder stage
+- Final image contains only production dependencies
 
-# 5. Verify installation
-- docker --version
-- docker-compose --version
+Deployment flow:
+1. Build Docker images
+2. Start services via Docker Compose
+3. Wait for dependencies (PostgreSQL, RabbitMQ)
+4. Run Prisma migrations
+5. Start application
 
-## 📦 Step 2: Clone the Repository
-Pull the application code onto your server.
+## Load Balancing & Scaling
 
-# 1. Clone your project repository
-- git clone <YOUR_GITHUB_REPOSITORY_URL> rps-game
+- Multiple web instances (`web1`, `web2`) are deployed
+- Nginx distributes incoming traffic across instances
+- Default strategy: **round-robin**
 
-# 2. Navigate into the project directory
-- cd rps-game
+### Horizontal Scaling
+To scale further:
+```bash
+docker compose up --scale web=3
+```
+(or define additional services)
 
-## ⚙️ Step 3: Environment Configuration
-The production Docker Compose file is configured to use internal networking for security, but you still need an environment file for Next.js and Prisma.
+## Health Checks & Reliability
+* Each service includes a **health check**
+* Docker Compose ensures:
+  - Dependent services start only when healthy
+  - Restart policies handle transient failures
 
-# Create .env file with production database URL
-- echo 'DATABASE_URL="postgresql://user:password@postgres:5432/rps_production?schema=public"' > .env
+### Example:
+- PostgreSQL -> `pg_isready`
+- RabbitMQ -> `rabbitmq-diagnostics ping`
+- Web -> `/api/health`
 
-Open the .env file (nano .env) and ensure the DATABASE_URL matches the production compose configuration:
-# Production Database URL (matches docker-compose.prod.yml)
-DATABASE_URL="postgresql://user:password@postgres:5432/rps_production?schema=public"
+## Failure Handling
+* If one web instance fails:
+    - Nginx automatically routes traffic to remaining instances
 
-🚀 Step 4: Spin Up the Application
-We will use the production compose file (docker-compose.prod.yml) which includes the Next.js application image and the PostgreSQL database.
-# Build the Next.js image and start the containers in detached mode
-- sudo docker-compose -f docker-compose.prod.yml up -d --build
+* Ensures **high availability**
 
-🔍 Step 5: Verify Deployment
-Check the logs to ensure everything is running smoothly and the database migration was successful.
-# Check the web server logs
-- sudo docker-compose -f docker-compose.prod.yml logs -f web
+* Containers are configured with:
+    - `restart: always`
 
-You should see output indicating that migrations were applied and the server is listening on port 3000 (which is mapped to port 80 on the host).
+## Testing Strategy
+**Unit Tests**
+  - Run via Docker (`docker compose --profile test run test`)
 
-🌐 Accessing the Game
-Open your web browser and navigate to your server's public IP address:
-http://<YOUR_SERVER_PUBLIC_IP>
-You don't need to specify a port since it is mapped to the default HTTP port (80).
+**End-to-End Tests**
+  - Implemented using Playwright
+  - Run in isolated container environment
 
-🛑 Useful Commands for Maintenance
-To stop the application:
-- sudo docker-compose -f docker-compose.prod.yml down
+* Tests are **not executed during build**
+  - Ensures faster production builds
+  - Keeps runtime clean
 
-To update the application with new code:
-- git pull origin main
-- sudo docker-compose -f docker-compose.prod.yml up -d --build
+## CI/CD Considerations (Future)
+Potential improvements:
+- Automate build & test pipeline (GitHub Actions / GitLab CI)
+- Auto-deploy on merge to main branch
+- Add Docker image versioning
 
+## Security Considerations
+- Environment variables used for sensitive configuration
+- `.env` is excluded from version control
+- Database and RabbitMQ are not exposed publicly (internal network only)
 
+## Monitoring & Observability (Future)
+Recommended enhancements:
+- Add **Prometheus + Grafana** for monitoring
+- Centralized logging (ELK stack)
+- Health dashboards
 
-REPO_URL="<ลิงก์_GITHUB_ของคุณ>" && \
-sudo apt update && sudo apt upgrade -y && \
-sudo apt install docker.io docker-compose git -y && \
-sudo systemctl start docker && \
-sudo systemctl enable docker && \
-git clone $REPO_URL rps-game && \
-cd rps-game && \
-echo 'DATABASE_URL="postgresql://admin:supersecretpassword@postgres:5432/rps_production?schema=public"' > .env && \
-sudo docker-compose -f docker-compose.prod.yml up -d --build && \
-echo "🎉 Deployment Successful! Your app is starting up."
+## Production Considerations
+- Add HTTPS (TLS) via Nginx or reverse proxy
+- Configure firewall (allow only required ports)
+- Use managed database for higher reliability
+- Deploy using orchestration tools (e.g., Kubernetes)
+
+## Summary
+This deployment setup provides:
+* Containerized architecture
+* Scalable web layer
+* Load balancing with failover
+* Health-aware orchestration
+* Separation of concerns
+* Production-ready foundation

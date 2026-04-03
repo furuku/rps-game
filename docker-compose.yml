@@ -1,3 +1,5 @@
+version: '3.9'
+
 services:
   nginx:
     image: nginx:latest
@@ -8,24 +10,26 @@ services:
     volumes:
       - ./nginx.conf:/etc/nginx/nginx.conf:ro
     depends_on:
-      web:
+      web1:
+        condition: service_healthy
+      web2:
         condition: service_healthy
 
-  web:
+  web1:
     build: .
-    container_name: rps_web
+    container_name: rps_web1
     restart: always
-    depends_on:
-      postgres:
-        condition: service_healthy
-      rabbitmq:
-        condition: service_healthy
     environment:
       DATABASE_URL: ${DATABASE_URL}
       RABBITMQ_URL: ${RABBITMQ_URL}
       NODE_ENV: production
     expose:
       - "3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_started
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:3000/api/health"]
       interval: 10s
@@ -33,9 +37,47 @@ services:
       retries: 5
     command: >
       sh -c "
-      wait-for-it postgres:5432 &&
-      wait-for-it rabbitmq:5672 &&
-      npx prisma migrate deploy &&
+      echo 'Waiting for Postgres...';
+      until nc -z rps_postgres 5432; do sleep 1; done;
+      echo 'Waiting for RabbitMQ...';
+      until nc -z rps_rabbitmq 5672; do sleep 1; done;
+      echo 'Running Prisma generate and migrate...';
+      npx prisma generate;
+      npx prisma migrate deploy;
+      echo 'Starting app...';
+      npm start
+      "
+
+  web2:
+    build: .
+    container_name: rps_web2
+    restart: always
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+      RABBITMQ_URL: ${RABBITMQ_URL}
+      NODE_ENV: production
+    expose:
+      - "3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000/api/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    command: >
+      sh -c "
+      echo 'Waiting for Postgres...';
+      until nc -z rps_postgres 5432; do sleep 1; done;
+      echo 'Waiting for RabbitMQ...';
+      until nc -z rps_rabbitmq 5672; do sleep 1; done;
+      echo 'Running Prisma generate and migrate...';
+      npx prisma generate;
+      npx prisma migrate deploy;
+      echo 'Starting app...';
       npm start
       "
 
@@ -67,7 +109,7 @@ services:
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
     healthcheck:
-      test: ["CMD", "rabbitmqctl", "status"]
+      test: ["CMD-SHELL", "rabbitmq-diagnostics", "-q", "ping"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -77,7 +119,7 @@ services:
     container_name: rps_test
     depends_on:
       postgres:
-        condition: service_healthy
+        condition: service_started
     environment:
       DATABASE_URL: ${DATABASE_URL}
     command: >
@@ -95,9 +137,9 @@ services:
     working_dir: /app
     depends_on:
       web:
-        condition: service_healthy
+        condition: service_started
     environment:
-      - BASE_URL=http://web:3000
+      - BASE_URL=http://nginx:80
     volumes:
       - .:/app
     command: >
