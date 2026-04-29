@@ -22,7 +22,12 @@ docker compose up --build -d
 ---
 
 <details>
-<summary><b>🛠 1. Install Docker & Docker Compose (Click to expand)</b></summary>
+
+<summary>
+
+<b>🛠 1. Install Docker & Docker Compose (Click to expand)</b>
+
+</summary>
 
 ## 1. Install Docker & Docker Compose (v2)
 
