@@ -1,3 +1,5 @@
+![Docker](https://img.shields.io/badge/docker-%230db7ed.svg?style=for-the-badge&logo=docker&logoColor=white) ![Next JS](https://img.shields.io/badge/Next-black?style=for-the-badge&logo=next.js&logoColor=white)
+
 # RPS Game - Installation & Run Guide
 
 ## Overview
@@ -18,6 +20,9 @@ cp .env.example .env   # or create manually
 docker compose up --build -d
 
 ---
+
+<details>
+<summary><b>🛠 1. Install Docker & Docker Compose (Click to expand)</b></summary>
 
 ## 1. Install Docker & Docker Compose (v2)
 
@@ -58,6 +63,8 @@ sudo systemctl start docker
 docker --version
 docker compose version
 ```
+
+</details>
 
 ---
 
@@ -199,9 +206,9 @@ docker compose up --build
 
 ## Notes
 
-* Ensure ports **80, 3000, 5432, 5672, 15672** are open
-* `.env` must match your environment
-* All services wait for dependencies before starting
-* Tests are **not executed during build** (run manually)
+* **Port 80:** Must be available on the host to access the game via Nginx.
+* **Internal Ports:** Services like PostgreSQL (5432) and RabbitMQ (5672) are only accessible within the Docker network for security.
+* **Environment Variables:** Always ensure `.env` is configured before starting the containers.
+* **Manual Testing:** Test suites are not triggered during the build process; please run them manually using the commands in section 7.
 
 ---
