@@ -18,19 +18,13 @@ git clone https://github.com/furuku/rps-game.git
 cd rps-game
 cp .env.example .env   # or create manually
 docker compose up --build -d
+```
 
 ---
 
 <details>
-
-<summary>
-
-<b>🛠 1. Install Docker & Docker Compose (Click to expand)</b>
-
-</summary>
-
-## 1. Install Docker & Docker Compose (v2)
-
+<summary><h2> 1. Install Docker & Docker Compose (Click to expand)</h2></summary>
+  
 ### Option A (Recommended - Official Docker)
 
 ```bash
